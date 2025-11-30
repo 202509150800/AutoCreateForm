@@ -111,4 +111,9 @@ ID  | 姓名 | 電話      | 地址
 
 ## 許可證
 
-ISC License
+MIT License
+
+## 🤖 AI Development
+
+This project was **100% developed with Claude Opus 4.5** (Anthropic).
+
