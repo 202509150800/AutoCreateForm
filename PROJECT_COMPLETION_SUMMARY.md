@@ -64,7 +64,7 @@ AutoCreateForm/
 | **Excel 解析** | 使用 XLSX 庫讀取資料 | ✅ 完成 |
 | **ID 驗證** | 確保 Excel 包含 ID 欄位 | ✅ 完成 |
 | **Word 處理** | 使用 JSZip 處理 .docx 檔案 | ✅ 完成 |
-| **佔位符替換** | `{{欄位名稱}}` 格式替換 | ✅ 完成 |
+| **佔位符替換** | `{欄位名稱}` 格式替換 | ✅ 完成 |
 | **PDF 轉換** | 使用 LibreOffice 轉換 | ✅ 完成 |
 | **批量生成** | 根據 Excel 行數批量生成 | ✅ 完成 |
 | **ZIP 下載** | 打包所有檔案為 ZIP | ✅ 完成 |
@@ -110,7 +110,7 @@ Excel 解析 (XLSX.readFile)
     ↓
 讀取 Word 範本 (JSZip)
     ↓
-替換 {{placeholder}} (正則表達式)
+替換 {placeholder} (正則表達式)
     ↓
 寫入新 Word 檔案
     ↓

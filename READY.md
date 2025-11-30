@@ -4,7 +4,7 @@
 
 ### 原版 (V1.0)
 - ❌ 下載 CSV 範本
-- ❌ 佔位符 `{{欄位}}`
+- ❌ 佔位符 `{欄位}`
 - ❌ 使用者需自行準備範本
 
 ### 新版 (V2.0) - 現在
@@ -88,10 +88,10 @@ Word 內容：
 
 ### 2. 佔位符簡化
 ```
-原：{{model}}
+原：{model}
 新：{model}
 
-原：{{MAAC_address}}
+原：{MAAC_address}
 新：{MAAC_address}
 
 更簡潔、更標準
@@ -138,8 +138,8 @@ Step 4: 生成 → 批量安裝單 PDF
 
 ### 佔位符替換邏輯
 ```javascript
-// 原：{{model}}
-placeholder = '{{model}}';
+// 原：{model}
+placeholder = '{model}';
 regex = /\{\{model\}\}/g;
 
 // 新：{model}
