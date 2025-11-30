@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel 批量表格生成器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 批量表格生成工具</h1>
+            <p>從 Excel 資料自動生成 Word 和 PDF 檔案</p>
+        </header>
+
+        <main>
+            <!-- Step 1: Define Columns -->
+            <section class="step" id="step1">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    <h2>定義欄位</h2>
+                </div>
+                <div class="step-content">
+                    <p>定義您要使用的資料欄位。系統將根據這些欄位讀取您上傳的 Excel 資料。</p>
+                    
+                    <div class="columns-container" id="columnsContainer">
+                        <div class="column-item">
+                            <input type="text" class="column-input" placeholder="輸入欄位名稱 (例: ID)" value="ID" disabled>
+                            <button class="btn-small" onclick="alert('ID 欄位必須存在')" disabled>✓</button>
+                        </div>
+                    </div>
+
+                    <div class="add-column-group">
+                        <input type="text" id="newColumnInput" placeholder="新欄位名稱 (例: 姓名、電話、地址)">
+                        <button class="btn btn-primary" onclick="addColumn()">➕ 添加欄位</button>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>提示：</strong> 
+                        <ul style="margin: 5px 0; padding-left: 20px;">
+                            <li>ID 欄位是必須的 (用於檔案命名)</li>
+                            <li>您可以添加任意數量的其他欄位</li>
+                            <li>欄位名稱必須與 Excel 標題完全相同</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 2: Upload Excel -->
+            <section class="step" id="step2">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                    <h2>上傳 Excel 資料</h2>
+                </div>
+                <div class="step-content">
+                    <p>上傳您的 Excel 檔案（.xlsx 或 .xls）。檔案必須包含 ID 欄位和您定義的其他欄位。</p>
+                    <div class="upload-area" id="excelUpload" ondrop="handleDrop(event, 'excel')" ondragover="handleDragOver(event)">
+                        <input type="file" id="excelFile" accept=".xlsx,.xls" onchange="handleExcelUpload()" style="display:none">
+                        <div class="upload-text">
+                            <span>📁 拖拽 Excel 檔案到此或點擊選擇</span>
+                        </div>
+                    </div>
+                    <div id="excelFileName" class="file-name"></div>
+                    <div class="preview-container" id="previewContainer" style="display:none;">
+                        <strong>預覽資料：</strong>
+                        <div id="previewTable" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; margin-top: 10px;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 3: Upload Word Template -->
+            <section class="step" id="step3">
+                <div class="step-header">
+                    <span class="step-number">3</span>
+                    <h2>上傳 Word 範本</h2>
+                </div>
+                <div class="step-content">
+                    <p>選擇 Word 表格範本（.docx 格式）。在範本中用 <code>{欄位名稱}</code> 格式標記要填寫的位置。</p>
+                    
+                    <div class="template-examples">
+                        <strong>✏️ 佔位符範例：</strong>
+                        <div style="background: #f0f4ff; padding: 10px; border-radius: 4px; margin: 10px 0; font-size: 0.95em;">
+                            <code>{ID}</code> → 自動替換為 Excel 的 ID 值<br>
+                            <code>{model}</code> → 自動替換為 Excel 的 model 值<br>
+                            <code>{MAAC_address}</code> → 自動替換為 Excel 的 MAAC_address 值
+                        </div>
+                    </div>
+
+                    <div class="upload-area" id="wordUpload" ondrop="handleDrop(event, 'word')" ondragover="handleDragOver(event)">
+                        <input type="file" id="wordFile" accept=".docx" onchange="handleWordUpload()" style="display:none">
+                        <div class="upload-text">
+                            <span>📄 拖拽 Word 檔案到此或點擊選擇</span>
+                        </div>
+                    </div>
+                    <div id="wordFileName" class="file-name"></div>
+                </div>
+            </section>
+
+            <!-- Step 4: Configure & Generate -->
+            <section class="step" id="step4">
+                <div class="step-header">
+                    <span class="step-number">4</span>
+                    <h2>設置與生成</h2>
+                </div>
+                <div class="step-content">
+                    <div class="config-group">
+                        <label>
+                            <input type="checkbox" id="generatePDF" checked> 生成 PDF 檔案
+                        </label>
+                        <label>
+                            <input type="checkbox" id="generateWord" checked> 生成 Word 檔案
+                        </label>
+                    </div>
+                    <button class="btn btn-success" onclick="generateFiles()">🚀 開始生成</button>
+                </div>
+            </section>
+
+            <!-- Progress Section -->
+            <section class="step" id="progressSection" style="display:none;">
+                <div class="step-header">
+                    <h2>生成進度</h2>
+                </div>
+                <div class="step-content">
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div id="progressFill" class="progress-fill"></div>
+                        </div>
+                        <div id="progressText" class="progress-text">0%</div>
+                    </div>
+                    <div id="statusMessage" class="status-message"></div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="step" id="resultsSection" style="display:none;">
+                <div class="step-header">
+                    <h2>✅ 生成完成</h2>
+                </div>
+                <div class="step-content">
+                    <p id="resultSummary"></p>
+                    <button class="btn btn-primary" onclick="downloadAll()">📦 下載全部檔案 (ZIP)</button>
+                    <button class="btn btn-secondary" onclick="location.reload()">🔄 重新開始</button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 批量表格生成工具 | 使用 Node.js + Express</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
