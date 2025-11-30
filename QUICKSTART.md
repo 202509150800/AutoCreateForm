@@ -1,91 +1,57 @@
-# 快速開始指南
+# 快速入門指南
 
-## 步驟 1：安裝依賴
+## 5 分鐘上手
 
+### 1️⃣ 啟動應用
 ```bash
+cd AutoCreateForm
 npm install
-```
-
-## 步驟 2：啟動應用
-
-```bash
 npm start
 ```
+打開瀏覽器訪問：http://localhost:3000
 
-應用將在 **http://localhost:3000** 啟動
+### 2️⃣ 定義欄位
+在介面的「步驟 1」中：
+- ID 欄位已預設（必須）
+- 輸入其他欄位名稱，如：姓名、電話、地址
+- 點擊「➕ 添加欄位」
 
-## 步驟 3：準備 Excel 資料
-
-1. 點擊「下載 Excel 範本」
-2. 在 Excel 中填寫您的資料
-3. **必須包含 ID 欄位**（每筆記錄有唯一識別碼）
-
-## 步驟 4：準備 Word 範本
-
-1. 開啟 Microsoft Word
-2. 設計您的表格/文件
-3. **在要填寫的位置插入佔位符** - 使用格式 `{欄位名稱}`
-
-### Word 範本範例：
-
+### 3️⃣ 準備 Excel 資料
+建立 Excel 檔案，格式如下：
 ```
-=== 個人資訊表 ===
+ID  | 姓名 | 電話      | 地址
+----|------|-----------|--------
+1   | 張三 | 0912345678| 台北市
+2   | 李四 | 0987654321| 台中市
+```
+儲存為 `.xlsx` 格式
 
+### 4️⃣ 準備 Word 範本
+建立 Word 檔案，在要填寫的位置使用佔位符：
+```
 姓名：{姓名}
 電話：{電話}
 地址：{地址}
-
-備註：{備註}
-
-表單完成日期：__________
 ```
+儲存為 `.docx` 格式
 
-## 步驟 5：上傳並生成
-
+### 5️⃣ 上傳並生成
 1. 上傳 Excel 檔案
 2. 上傳 Word 範本
-3. 選擇生成選項（Word/PDF）
+3. 勾選生成選項（Word / PDF）
 4. 點擊「開始生成」
+5. 下載 ZIP 檔案
 
-## 故障排除
+## 完成！🎉
 
-### PDF 轉換不工作？
+生成的檔案會根據 ID 命名：
+- `1.docx`, `1.pdf`
+- `2.docx`, `2.pdf`
+- ...
 
-需要安裝 LibreOffice：
+## 注意事項
 
-**Windows (使用 Chocolatey)：**
-```powershell
-choco install libreoffice
-```
-
-**Windows (直接下載)：**
-訪問 https://www.libreoffice.org/download/download/
-
-**macOS：**
-```bash
-brew install libreoffice
-```
-
-**Linux (Ubuntu/Debian)：**
-```bash
-sudo apt-get install libreoffice
-```
-
-### 埠號被占用？
-
-編輯 `server/app.js`，修改：
-```javascript
-const PORT = process.env.PORT || 3000;
-```
-
-改為其他埠號，如 8080。
-
-## 技術支持
-
-- 確保 Node.js 版本 ≥ 14.0
-- 檢查網絡連線
-- 查看瀏覽器控制台是否有錯誤信息
-
----
-
-祝您使用愉快！
+- ✅ Excel 必須包含 ID 欄位
+- ✅ 欄位名稱必須與佔位符完全相同
+- ✅ 佔位符格式：`{欄位名稱}`（單括號）
+- ⚠️ PDF 需要安裝 LibreOffice
