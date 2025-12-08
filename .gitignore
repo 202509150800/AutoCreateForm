@@ -10,3 +10,8 @@ temp/
 *.swp
 *.swo
 *~
+
+# Laptop info collection - sensitive data
+tools/output/
+tools/*.csv
+tools/*.xlsx

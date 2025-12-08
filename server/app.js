@@ -156,28 +156,54 @@ async function createWordDocument(templatePath, data, id, columnsList = []) {
             // Get document.xml
             let documentXml = await templateZip.file('word/document.xml').async('string');
             
-            // First, clean up Word's XML formatting that might split placeholders
-            // Remove XML tags between { and } to reconstruct placeholders
-            // This handles cases where Word splits {Broad} into {</w:t>...</w:t>Broad</w:t>...</w:t>}
-            documentXml = documentXml.replace(/\{(<[^>]*>)*([^}<]+)(<[^>]*>)*\}/g, (match) => {
-                // Extract just the text content between { and }
-                const textOnly = match.replace(/<[^>]*>/g, '');
-                return textOnly;
-            });
+            // Advanced XML cleanup for Word's tag splitting issue
+            // Word often splits placeholders like {MAC} into multiple XML tags:
+            // Example: <w:t>{</w:t></w:r><w:r><w:t>M</w:t></w:r><w:r><w:t>AC</w:t></w:r><w:r><w:t>}</w:t>
             
-            // Replace placeholders: {fieldName} with value (single braces)
-            // Only replace fields that are in columnsList (if provided)
+            // Step 1: Find all text between <w:t> tags and merge consecutive ones
+            // This regex finds { followed by any characters (including XML tags) until }
+            const placeholderPattern = /\{([^{}]*?)\}/g;
+            
+            // Step 2: For each field, create a more flexible pattern that matches the field name
+            // even if it's split across multiple XML tags
             const fieldsToReplace = columnsList && columnsList.length > 0 ? columnsList : Object.keys(data);
             
             console.log(`🔄 替換欄位 (ID: ${id}):`, fieldsToReplace);
             
             fieldsToReplace.forEach(key => {
+                // Build a regex pattern that matches the field name even with XML tags in between
+                // For example, for "MAC", match: M</w:t>...</w:t>A</w:t>...</w:t>C
+                let flexiblePattern = '\\{';
+                for (let i = 0; i < key.length; i++) {
+                    // Escape the character for regex
+                    const char = key[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    flexiblePattern += char;
+                    // Allow optional XML tags between each character
+                    if (i < key.length - 1) {
+                        flexiblePattern += '(?:<[^>]*>)*';
+                    }
+                }
+                flexiblePattern += '(?:<[^>]*>)*\\}';
+                
+                const regex = new RegExp(flexiblePattern, 'g');
+                const value = String(data[key] || '');
+                // Escape special characters in replacement value
+                const escapedValue = value.replace(/\$/g, '$$$$');
+                
+                const beforeCount = (documentXml.match(regex) || []).length;
+                documentXml = documentXml.replace(regex, escapedValue);
+                
+                if (beforeCount > 0) {
+                    console.log(`  ✓ {${key}} → "${value}" (${beforeCount} 處)`);
+                }
+            });
+            
+            // Also try simple replacement for clean placeholders (no XML splitting)
+            fieldsToReplace.forEach(key => {
                 const placeholder = `{${key}}`;
-                // Escape special regex characters in the placeholder itself
                 const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const regex = new RegExp(escapedPlaceholder, 'g');
                 const value = String(data[key] || '');
-                // Escape special characters in replacement value
                 const escapedValue = value.replace(/\$/g, '$$$$');
                 documentXml = documentXml.replace(regex, escapedValue);
             });
