@@ -1,10 +1,17 @@
 # Laptop Info Collection Script
-# Usage: .\CollectLaptopInfo.ps1 -OutputFile "path\to\output.txt" -ID "L20251208163900"
+# Usage: .\CollectLaptopInfo.ps1
 
 param(
-    [string]$OutputFile = "LaptopInfo.txt",
     [string]$ID = "L" + (Get-Date -Format "yyyyMMddHHmmss")
 )
+
+# Auto output to .\output\{ID}.txt
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$OutputDir = Join-Path $ScriptDir "output"
+if (-not (Test-Path $OutputDir)) {
+    New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
+}
+$OutputFile = Join-Path $OutputDir "$ID.txt"
 
 Write-Host "Collecting Laptop Info..." -ForegroundColor Cyan
 
