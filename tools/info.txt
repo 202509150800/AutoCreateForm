@@ -1,0 +1,3 @@
+ID, SN, Model, Manufacturer, ComputerName, 
+MAC, WiFiAdapter, EthernetAdapter, OSVersion, OSBuild, InstallDate,
+CPU, RAM, DiskSize, DiskFree, BatteryStatus, BatteryHealth, CurrentUser, Domain

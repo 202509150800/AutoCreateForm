@@ -5,13 +5,16 @@ const fs = require('fs');
 const XLSX = require('xlsx');
 const JSZip = require('jszip');
 const archiver = require('archiver');
-const { execSync } = require('child_process');
-// LibreOffice 路徑（如果自動找不到）
-process.env.PATH = 'C:\\Program Files\\LibreOffice\\program;' + process.env.PATH;
+
+// 導入工具模塊
+const { parseCSVContent } = require('./utils/csvParser');
+const { generateWordDocument } = require('./utils/wordGenerator');
+const { convertWordToPDF, isLibreOfficeAvailable } = require('./utils/pdfConverter');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Setup directories
+// ==================== 目錄配置 ====================
 const uploadDir = path.join(__dirname, '../uploads');
 const outputDir = path.join(__dirname, '../output');
 const tempDir = path.join(__dirname, '../temp');
@@ -20,7 +23,7 @@ const tempDir = path.join(__dirname, '../temp');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
-// Configure multer
+// ==================== Multer 配置 ====================
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, uploadDir);
@@ -36,16 +39,39 @@ const upload = multer({
     limits: { fileSize: 50 * 1024 * 1024 }
 });
 
-// Serve static files
+// ==================== 中間件 ====================
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json());
 
-// Routes
+// ==================== 路由 ====================
+
+/**
+ * GET / - 主頁面
+ */
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// API: Generate files
+/**
+ * POST /api/generate - 批量生成文檔
+ * 
+ * 請求體:
+ *   - excelFile: Excel/CSV 數據文件
+ *   - wordFile: Word 模板文件
+ *   - columns: JSON 字符串，字段列表
+ *   - generatePDF: 是否生成 PDF ('true'/'false')
+ *   - generateWord: 是否生成 Word ('true'/'false')
+ * 
+ * 響應:
+ *   {
+ *     success: boolean,
+ *     totalFiles: number,
+ *     wordCount: number,
+ *     pdfCount: number,
+ *     totalRecords: number,
+ *     errors?: string[]
+ *   }
+ */
 app.post('/api/generate', upload.fields([
     { name: 'excelFile', maxCount: 1 },
     { name: 'wordFile', maxCount: 1 }
@@ -61,43 +87,75 @@ app.post('/api/generate', upload.fields([
             columnsList = ['ID'];
         }
 
+        // ========== 文件驗證 ==========
         if (!req.files.excelFile || !req.files.wordFile) {
-            return res.status(400).json({ message: '缺少必要的檔案' });
+            console.error('❌ 文件驗證失敗:');
+            console.error('   Excel/CSV 文件:', req.files.excelFile ? '✓' : '✗ 缺少');
+            console.error('   Word 文件:', req.files.wordFile ? '✓' : '✗ 缺少');
+            
+            let errorMsg = '❌ 缺少必要的檔案:\n';
+            if (!req.files.excelFile) {
+                errorMsg += '- 請上傳 Excel 或 CSV 資料檔案\n';
+            }
+            if (!req.files.wordFile) {
+                errorMsg += '- 請上傳 Word 範本檔案 (.docx)\n';
+            }
+            
+            return res.status(400).json({ message: errorMsg });
         }
 
+        console.log('✓ 檔案驗證通過:');
+        console.log('   Excel/CSV:', req.files.excelFile[0].originalname);
+        console.log('   Word:', req.files.wordFile[0].originalname);
+
+        // ========== 讀取文件 ==========
         const excelPath = req.files.excelFile[0].path;
         const wordPath = req.files.wordFile[0].path;
+        const fileName = req.files.excelFile[0].originalname.toLowerCase();
 
-        // Read Excel file
         let data = [];
         try {
-            const workbook = XLSX.readFile(excelPath);
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            data = XLSX.utils.sheet_to_json(sheet);
+            if (fileName.endsWith('.csv')) {
+                // 解析 CSV
+                let csvContent = fs.readFileSync(excelPath, 'utf-8');
+                data = parseCSVContent(csvContent);
+            } else {
+                // 解析 Excel
+                const workbook = XLSX.readFile(excelPath);
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                data = XLSX.utils.sheet_to_json(sheet);
+            }
         } catch (error) {
-            return res.status(400).json({ message: 'Excel 檔案讀取失敗: ' + error.message });
+            return res.status(400).json({ message: '檔案讀取失敗: ' + error.message });
         }
 
         if (data.length === 0) {
             return res.status(400).json({ message: 'Excel 檔案無資料' });
         }
 
-        // Debug: log actual column names from Excel
+        // ========== 驗證 ID 字段 ==========
         const actualColumns = Object.keys(data[0]);
         console.log('📊 Excel 欄位名稱:', actualColumns);
         console.log('📊 第一行資料:', data[0]);
 
-        // Find ID column (case-insensitive)
         const idField = Object.keys(data[0]).find(key => key.toLowerCase() === 'id');
         if (!idField) {
             return res.status(400).json({ message: 'Excel 必須包含 ID 欄位' });
         }
 
+        // ========== 生成配置日誌 ==========
         let wordCount = 0;
         let pdfCount = 0;
         const errors = [];
 
-        // Process each row
+        console.log('\n📋 生成檔案配置:');
+        console.log('  要替換的欄位列表:', columnsList);
+        console.log('  資料中的實際欄位:', Object.keys(data[0]));
+        console.log('  生成 Word:', generateWord);
+        console.log('  生成 PDF:', generatePDF);
+        console.log('  總記錄數:', data.length);
+
+        // ========== 處理每行數據 ==========
         for (let i = 0; i < data.length; i++) {
             const row = data[i];
             const id = row[idField];
@@ -106,21 +164,23 @@ app.post('/api/generate', upload.fields([
 
             try {
                 if (generateWord) {
-                    await createWordDocument(wordPath, row, id, columnsList);
+                    await generateWordDocument(wordPath, row, id, columnsList, path.join(outputDir, `${id}.docx`));
                     wordCount++;
                 }
 
                 if (generatePDF) {
                     const wordFilePath = path.join(outputDir, `${id}.docx`);
-                    await convertWordToPDF(wordFilePath, id);
-                    pdfCount++;
+                    const result = await convertWordToPDF(wordFilePath, id, outputDir);
+                    if (result.success) {
+                        pdfCount++;
+                    }
                 }
             } catch (error) {
                 errors.push(`行 ${i + 1} (ID: ${id}): ${error.message}`);
             }
         }
 
-        // Clean up uploaded files
+        // ========== 清理上傳的文件 ==========
         try {
             fs.unlinkSync(excelPath);
             fs.unlinkSync(wordPath);
@@ -141,116 +201,9 @@ app.post('/api/generate', upload.fields([
     }
 });
 
-// Create Word document by replacing placeholders
-async function createWordDocument(templatePath, data, id, columnsList = []) {
-    return new Promise(async (resolve, reject) => {
-        try {
-            const outputPath = path.join(outputDir, `${id}.docx`);
-            
-            // Read template as zip
-            const templateBuffer = fs.readFileSync(templatePath);
-            const zip = new JSZip();
-            
-            const templateZip = await zip.loadAsync(templateBuffer);
-            
-            // Get document.xml
-            let documentXml = await templateZip.file('word/document.xml').async('string');
-            
-            // Advanced XML cleanup for Word's tag splitting issue
-            // Word often splits placeholders like {MAC} into multiple XML tags:
-            // Example: <w:t>{</w:t></w:r><w:r><w:t>M</w:t></w:r><w:r><w:t>AC</w:t></w:r><w:r><w:t>}</w:t>
-            
-            // Step 1: Find all text between <w:t> tags and merge consecutive ones
-            // This regex finds { followed by any characters (including XML tags) until }
-            const placeholderPattern = /\{([^{}]*?)\}/g;
-            
-            // Step 2: For each field, create a more flexible pattern that matches the field name
-            // even if it's split across multiple XML tags
-            const fieldsToReplace = columnsList && columnsList.length > 0 ? columnsList : Object.keys(data);
-            
-            console.log(`🔄 替換欄位 (ID: ${id}):`, fieldsToReplace);
-            
-            fieldsToReplace.forEach(key => {
-                // Build a regex pattern that matches the field name even with XML tags in between
-                // For example, for "MAC", match: M</w:t>...</w:t>A</w:t>...</w:t>C
-                let flexiblePattern = '\\{';
-                for (let i = 0; i < key.length; i++) {
-                    // Escape the character for regex
-                    const char = key[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    flexiblePattern += char;
-                    // Allow optional XML tags between each character
-                    if (i < key.length - 1) {
-                        flexiblePattern += '(?:<[^>]*>)*';
-                    }
-                }
-                flexiblePattern += '(?:<[^>]*>)*\\}';
-                
-                const regex = new RegExp(flexiblePattern, 'g');
-                const value = String(data[key] || '');
-                // Escape special characters in replacement value
-                const escapedValue = value.replace(/\$/g, '$$$$');
-                
-                const beforeCount = (documentXml.match(regex) || []).length;
-                documentXml = documentXml.replace(regex, escapedValue);
-                
-                if (beforeCount > 0) {
-                    console.log(`  ✓ {${key}} → "${value}" (${beforeCount} 處)`);
-                }
-            });
-            
-            // Also try simple replacement for clean placeholders (no XML splitting)
-            fieldsToReplace.forEach(key => {
-                const placeholder = `{${key}}`;
-                const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regex = new RegExp(escapedPlaceholder, 'g');
-                const value = String(data[key] || '');
-                const escapedValue = value.replace(/\$/g, '$$$$');
-                documentXml = documentXml.replace(regex, escapedValue);
-            });
-            
-            // Update document.xml in zip
-            templateZip.file('word/document.xml', documentXml);
-            
-            // Write output file
-            const outputBuffer = await templateZip.generateAsync({ type: 'nodebuffer' });
-            fs.writeFileSync(outputPath, outputBuffer);
-            
-            resolve();
-        } catch (error) {
-            reject(error);
-        }
-    });
-}
-
-// Convert Word to PDF using LibreOffice
-async function convertWordToPDF(wordPath, id) {
-    return new Promise((resolve, reject) => {
-        try {
-            const outputPath = path.join(outputDir, `${id}.pdf`);
-            
-            // Check if LibreOffice is available
-            try {
-                execSync('soffice --version', { stdio: 'pipe' });
-            } catch (e) {
-                console.warn('LibreOffice not available, skipping PDF conversion');
-                resolve();
-                return;
-            }
-
-            // Convert using LibreOffice
-            const command = `soffice --headless --convert-to pdf --outdir "${outputDir}" "${wordPath}"`;
-            
-            execSync(command, { stdio: 'pipe' });
-            
-            resolve();
-        } catch (error) {
-            console.warn(`PDF conversion failed: ${error.message}`);
-            resolve(); // Don't reject, just skip PDF
-        }
-    });
-}
-
-// API: Download all files as ZIP
+/**
+ * GET /api/download-zip - 下載所有生成的文件作為 ZIP
+ */
 app.get('/api/download-zip', (req, res) => {
     try {
         res.setHeader('Content-Type', 'application/zip');
@@ -278,14 +231,15 @@ app.get('/api/download-zip', (req, res) => {
     }
 });
 
-// Error handling middleware
+// ==================== 錯誤處理 ====================
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: '伺服器錯誤: ' + err.message });
 });
 
-// Start server
+// ==================== 啟動服務器 ====================
 app.listen(PORT, () => {
     console.log(`✓ 伺服器運行在 http://localhost:${PORT}`);
     console.log(`✓ 打開瀏覽器訪問: http://localhost:${PORT}`);
+    console.log(`✓ PDF 轉換功能: ${isLibreOfficeAvailable() ? '✓ 可用' : '✗ 不可用'}`);
 });

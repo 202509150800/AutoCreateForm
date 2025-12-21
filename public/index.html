@@ -23,6 +23,28 @@
                 <div class="step-content">
                     <p>定義您要使用的資料欄位。系統將根據這些欄位讀取您上傳的 Excel 資料。</p>
                     
+                    <div class="input-mode-toggle">
+                        <button class="mode-btn active" onclick="switchInputMode('batch')">📋 批量輸入</button>
+                        <button class="mode-btn" onclick="switchInputMode('single')">➕ 逐個添加</button>
+                    </div>
+
+                    <!-- Batch Input Mode -->
+                    <div id="batchInputMode" class="input-mode-section active">
+                        <p style="color: #666; font-size: 13px; margin-bottom: 8px;">
+                            💡 在下方輸入欄位名稱，用逗號分隔。例如：ID, SN, Model, Manufacturer, MAC
+                        </p>
+                        <textarea id="batchColumnInput" placeholder="ID, SN, Model, Manufacturer, ComputerName, MAC, WiFiAdapter, EthernetAdapter, OSVersion, OSBuild, InstallDate, CPU, RAM, DiskSize, DiskFree, BatteryStatus, BatteryHealth, CurrentUser, Domain" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 13px;"></textarea>
+                        <button class="btn btn-primary" onclick="addColumnsFromBatch()" style="margin-top: 10px; width: 100%;">✓ 應用欄位</button>
+                    </div>
+
+                    <!-- Single Input Mode -->
+                    <div id="singleInputMode" class="input-mode-section" style="display: none;">
+                        <div class="add-column-group">
+                            <input type="text" id="newColumnInput" placeholder="新欄位名稱 (例: 姓名、電話、地址)">
+                            <button class="btn btn-primary" onclick="addColumn()">➕ 添加欄位</button>
+                        </div>
+                    </div>
+
                     <div class="columns-container" id="columnsContainer">
                         <div class="column-item">
                             <input type="text" class="column-input" placeholder="輸入欄位名稱 (例: ID)" value="ID" disabled>
@@ -30,32 +52,27 @@
                         </div>
                     </div>
 
-                    <div class="add-column-group">
-                        <input type="text" id="newColumnInput" placeholder="新欄位名稱 (例: 姓名、電話、地址)">
-                        <button class="btn btn-primary" onclick="addColumn()">➕ 添加欄位</button>
-                    </div>
-
                     <div class="info-box">
                         <strong>提示：</strong> 
                         <ul style="margin: 5px 0; padding-left: 20px;">
                             <li>ID 欄位是必須的 (用於檔案命名)</li>
-                            <li>您可以添加任意數量的其他欄位</li>
-                            <li>欄位名稱必須與 Excel 標題完全相同</li>
+                            <li>使用「批量輸入」模式快速添加多個欄位</li>
+                            <li>欄位名稱必須與 Excel 標題完全相同 (區分大小寫)</li>
                         </ul>
                     </div>
                 </div>
             </section>
 
-            <!-- Step 2: Upload Excel -->
+            <!-- Step 2: Upload Excel or CSV -->
             <section class="step" id="step2">
                 <div class="step-header">
                     <span class="step-number">2</span>
-                    <h2>上傳 Excel 資料</h2>
+                    <h2>上傳 資料檔案</h2>
                 </div>
                 <div class="step-content">
-                    <p>上傳您的 Excel 檔案（.xlsx 或 .xls）。檔案必須包含 ID 欄位和您定義的其他欄位。</p>
+                    <p>上傳您的資料檔案（Excel：.xlsx 或 .xls、CSV：.csv）。檔案必須包含 ID 欄位和您定義的其他欄位。</p>
                     <div class="upload-area" id="excelUpload" ondrop="handleDrop(event, 'excel')" ondragover="handleDragOver(event)">
-                        <input type="file" id="excelFile" accept=".xlsx,.xls" onchange="handleExcelUpload()" style="display:none">
+                        <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" onchange="handleExcelUpload()" style="display:none">
                         <div class="upload-text">
                             <span>📁 拖拽 Excel 檔案到此或點擊選擇</span>
                         </div>
@@ -75,12 +92,12 @@
                     <h2>上傳 Word 範本</h2>
                 </div>
                 <div class="step-content">
-                    <p>選擇 Word 表格範本（.docx 格式）。在範本中用 <code>{欄位名稱}</code> 格式標記要填寫的位置。</p>
+                    <p>選擇 Word 表格範本（.docx 格式）。在範本中用 <code>{{欄位名稱}}</code> 格式標記要填寫的位置。</p>
                     
                     <div class="template-examples">
                         <strong>✏️ 佔位符範例：</strong>
                         <div style="background: #f0f4ff; padding: 10px; border-radius: 4px; margin: 10px 0; font-size: 0.95em;">
-                            <code>{ID}</code> → 自動替換為 Excel 的 ID 值<br>
+                            <code>{{ID}}</code> → 自動替換為 Excel 的 ID 值<br>
                             <code>{model}</code> → 自動替換為 Excel 的 model 值<br>
                             <code>{MAAC_address}</code> → 自動替換為 Excel 的 MAAC_address 值
                         </div>
