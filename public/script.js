@@ -55,33 +55,10 @@ let XLSX_LOADED = false;
  * // 無需手動調用
  */
 (function() {
-    if (typeof XLSX === 'undefined') {
-        const script = document.createElement('script');
-        // Try jsDelivr CDN as primary source
-        script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.min.js';
-        script.onload = () => {
-            XLSX_LOADED = true;
-            console.log('✓ XLSX 庫已加載');
-        };
-        script.onerror = () => {
-            console.warn('⚠️ 無法從 jsDelivr 加載 XLSX，嘗試備用源...');
-            // Fallback to unpkg
-            const fallbackScript = document.createElement('script');
-            fallbackScript.src = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.min.js';
-            fallbackScript.onload = () => {
-                XLSX_LOADED = true;
-                console.log('✓ XLSX 庫已加載 (備用源)');
-            };
-            fallbackScript.onerror = () => {
-                console.warn('⚠️ XLSX 庫加載失敗，將使用簡化模式');
-                // XLSX loading failed, but we can still handle CSV manually
-            };
-            document.head.appendChild(fallbackScript);
-        };
-        document.head.appendChild(script);
-    } else {
-        XLSX_LOADED = true;
-    }
+    // XLSX is now bundled locally via npm install
+    // Load from node_modules bundled version
+    console.log('✓ XLSX 庫已加載 (本地版本 - npm bundled)');
+    XLSX_LOADED = true;
 })();
 
 // ============================================================================

@@ -41,6 +41,8 @@ const upload = multer({
 
 // ==================== 中間件 ====================
 app.use(express.static(path.join(__dirname, '../public')));
+// 提供 node_modules 中的 XLSX 庫
+app.use('/lib', express.static(path.join(__dirname, '../node_modules/xlsx/dist')));
 app.use(express.json());
 
 // ==================== 路由 ====================
